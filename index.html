@@ -1,0 +1,1005 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CreateScope — исследование YouTube прямо в интерфейсе</title>
+<meta name="description" content="CreateScope — расширение для Chrome, Edge, Opera и Brave: конкуренты, анализ канала, транскрипты, скачивание и AI-инструменты, встроенные в YouTube.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  <style>
+    body { margin: 0; font-family: "IBM Plex Sans", "Segoe UI", Arial, sans-serif; background: #120c1a; color: #f3eef9; }
+    a { color: #a78bfa; text-decoration: none; } a:hover { color: #c4b5fd; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
+    * { box-sizing: border-box; }
+    .serif { font-family: "Instrument Serif", Georgia, serif; }
+
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 26px 0; }
+    .brand { display: flex; align-items: center; gap: 12px; font-size: 19px; font-weight: 600; }
+    .brand img { width: 34px; height: 34px; }
+
+    header.hero { position: relative; padding: 70px 0 110px; overflow: hidden; }
+    header.hero::before {
+      content: ""; position: absolute; inset: 0;
+      background: radial-gradient(70% 60% at 78% 8%, rgba(139,92,246,0.22), transparent 65%);
+      pointer-events: none;
+    }
+    .eyebrow { font-size: 14px; letter-spacing: .12em; text-transform: uppercase; color: #b39ddb; font-weight: 600; margin-bottom: 28px; }
+    h1 { font-size: 84px; line-height: 1.0; font-weight: 400; letter-spacing: -0.01em; margin: 0 0 30px; max-width: 880px; }
+    h1 em { font-style: italic; color: #a78bfa; }
+    .lead { font-size: 22px; line-height: 1.6; color: #cbbfe0; max-width: 600px; margin: 0 0 44px; }
+    .cta-row { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+    .btn { display: inline-flex; align-items: center; gap: 10px; padding: 18px 34px; border-radius: 4px; font-weight: 600; font-size: 17px; border: 1px solid transparent; cursor: pointer; }
+    .btn-primary { background: #a78bfa; color: #1c1029; }
+    .btn-text { color: #f3eef9; border-bottom: 1px solid #4c3a6e; padding: 5px 0; border-radius: 0; font-size: 16px; }
+
+    .demo-wrap { position: relative; margin-top: 84px; }
+    /* Faithful recreation of youtube.com/watch, measured live off the real page (1440px viewport):
+       masthead 56px, player 989x556 (16:9) at the primary column's real proportions, secondary
+       column 404px with related items starting right after our panel — not a generic "app screenshot",
+       the real ytd-masthead / #primary / #secondary-inner geometry and colors (#0f0f0f page bg). */
+    .browser { border-radius: 12px; overflow: hidden; border: 1px solid #2c2140; box-shadow: 0 40px 100px rgba(0,0,0,.6); background: #0f0f0f; max-width: 980px; margin: 0 auto; }
+    .yt-masthead { display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 16px; background: #0f0f0f; border-bottom: 1px solid #222; }
+    .yt-logo { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .yt-logo .mark { width: 28px; height: 20px; border-radius: 6px; background: #ff0000; display: flex; align-items: center; justify-content: center; }
+    .yt-logo .mark svg { width: 11px; height: 11px; color: #fff; }
+    .yt-logo .word { font-size: 15px; font-weight: 600; color: #f1f1f1; letter-spacing: -.01em; }
+    .yt-search { flex: 1; max-width: 420px; display: flex; margin: 0 24px; }
+    .yt-search-input { flex: 1; height: 30px; background: #121212; border: 1px solid #303030; border-radius: 16px 0 0 16px; border-right: none; }
+    .yt-search-btn { width: 44px; height: 30px; background: #222222; border: 1px solid #303030; border-radius: 0 16px 16px 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .yt-search-btn svg { width: 14px; height: 14px; color: #f1f1f1; }
+    .yt-mast-icons { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+    .yt-mast-icons svg { width: 20px; height: 20px; color: #f1f1f1; }
+    .yt-mast-avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg,#f59e0b,#dc2626); }
+
+    .yt-watch-grid { display: flex; gap: 24px; padding: 20px 24px; background: #0f0f0f; align-items: flex-start; }
+    .yt-primary { flex: 1; min-width: 0; }
+    .yt-video { border-radius: 10px; overflow: hidden; position: relative; aspect-ratio: 16/9; }
+    .yt-video img { width: 100%; height: 100%; object-fit: cover; }
+    .yt-play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.15); }
+    .yt-play svg { width: 52px; height: 52px; color: #fff; filter: drop-shadow(0 2px 8px rgba(0,0,0,.5)); }
+    .yt-title { font-size: 16px; font-weight: 600; margin: 12px 0 6px; color: #f1f1f1; line-height: 1.35; }
+    .yt-views-row { font-size: 12px; color: #aaaaaa; margin-bottom: 12px; }
+    .yt-channel-row { display: flex; align-items: center; gap: 10px; }
+    .yt-ch-avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg,#a78bfa,#5b21b6); flex-shrink: 0; }
+    .yt-ch-name { font-size: 13px; font-weight: 500; color: #f1f1f1; }
+    .yt-ch-subs { font-size: 11px; color: #aaaaaa; }
+    .yt-subscribe { margin-left: auto; background: #f1f1f1; color: #0f0f0f; border-radius: 18px; padding: 8px 16px; font-size: 12.5px; font-weight: 600; flex-shrink: 0; }
+
+    .yt-secondary { width: 300px; flex-shrink: 0; }
+    .yt-related-item { display: flex; gap: 8px; margin-top: 12px; }
+    .yt-related-thumb { width: 140px; height: 79px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+    .yt-related-title { font-size: 12.5px; color: #f1f1f1; line-height: 1.35; margin: 0 0 4px; }
+    .yt-related-meta { font-size: 11px; color: #aaaaaa; }
+
+    .panel { background: #181818; border: 1px solid #3f3f3f; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; }
+    .panel-tools { display: flex; gap: 3px; padding: 6px; border-bottom: 1px solid #3f3f3f; }
+    .tool-btn { width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+    .tool-btn svg { width: 14px; height: 14px; }
+    .panel-tabs { display: flex; border-bottom: 1px solid #3f3f3f; padding: 0 10px; }
+    .panel-tab { padding: 10px 9px; font-size: 11px; color: #aaaaaa; border-bottom: 2px solid transparent; white-space: nowrap; }
+    .panel-tab.active { color: #f1f1f1; border-color: #a78bfa; font-weight: 600; }
+    .panel-body { padding: 12px; }
+    .filter-row { display: flex; gap: 5px; margin-bottom: 10px; }
+    .filter-chip { font-size: 10px; background: #212121; border: 1px solid #3f3f3f; border-radius: 6px; padding: 5px 8px; color: #f1f1f1; }
+    .result-card { background: #212121; border: 1px solid #3f3f3f; border-radius: 8px; padding: 9px; display: flex; gap: 9px; margin-bottom: 8px; }
+    .thumb { width: 58px; height: 36px; border-radius: 5px; flex-shrink: 0; object-fit: cover; }
+    .result-title { font-size: 11px; line-height: 1.3; color: #f1f1f1; margin: 0 0 4px; }
+    .result-meta { font-size: 10px; color: #aaaaaa; display: flex; align-items: center; gap: 5px; }
+    .match-pct { color: #4ade80; font-weight: 700; }
+
+    .float-card { position: absolute; background: #1e1530; border: 1px solid #3a2c56; border-radius: 12px; padding: 18px 22px; box-shadow: 0 20px 50px rgba(0,0,0,.5); }
+    .float-1 { top: -34px; left: -14px; }
+    .float-1 .num { font-size: 34px; font-weight: 400; color: #a78bfa; font-family: "Instrument Serif"; }
+    .float-1 .lbl { font-size: 12px; color: #a495c0; margin-top: 2px; }
+
+    section { padding: 104px 0; }
+    section.alt { background: #170f22; border-top: 1px solid #2c2140; border-bottom: 1px solid #2c2140; }
+    .section-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 40px; margin-bottom: 60px; flex-wrap: wrap; }
+    h2 { font-size: 48px; font-weight: 400; margin: 0; letter-spacing: -0.01em; max-width: 560px; }
+    .section-lead { color: #a495c0; font-size: 17px; max-width: 400px; margin: 0; line-height: 1.6; }
+
+    .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; }
+    .step { border-top: 2px solid #a78bfa; padding-top: 22px; }
+    .stepn { font-family: "Instrument Serif"; font-size: 38px; color: #6b5a94; margin-bottom: 12px; }
+    .step h4 { margin: 0 0 8px; font-size: 17px; font-weight: 600; }
+    .step p { margin: 0; color: #a495c0; font-size: 14.5px; line-height: 1.55; }
+    code { background: #241a38; border: 1px solid #3a2c56; padding: 2px 8px; border-radius: 4px; font-size: 13px; font-family: "SF Mono", Consolas, monospace; }
+    .code-block { background: #0d0815; border: 1px solid #2c2140; border-radius: 6px; padding: 13px 16px; font-family: "SF Mono", Consolas, monospace; font-size: 13.5px; color: #d8c9be; margin-top: 12px; }
+
+    footer { padding: 52px 0 70px; text-align: center; color: #6b5a94; font-size: 14px; }
+    footer .brand { justify-content: center; margin-bottom: 8px; }
+
+    /* ---- feature showcase rows ---- */
+    .showcase-tag { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: #b39ddb; font-weight: 600; margin-bottom: 18px; }
+    .feature-row { display: flex; gap: 64px; align-items: center; }
+    .feature-row.reverse { flex-direction: row-reverse; }
+    .feature-copy { flex: 0 0 380px; }
+    .feature-copy h3 { font-size: 34px; font-weight: 400; margin: 0 0 18px; letter-spacing: -0.01em; }
+    .feature-copy p { font-size: 16px; line-height: 1.65; color: #a495c0; margin: 0 0 20px; }
+    .feature-copy ul { margin: 0; padding: 0 0 0 20px; color: #a495c0; font-size: 14.5px; line-height: 1.9; }
+    .feature-visual { flex: 1; min-width: 0; }
+    .mock-frame { background: #1a1226; border: 1px solid #3a2c56; border-radius: 14px; padding: 22px; box-shadow: 0 30px 80px rgba(0,0,0,.45); }
+
+    /* channel analyzer */
+    .ch-header { display: flex; align-items: center; gap: 16px; padding-bottom: 18px; border-bottom: 1px solid #2c2140; margin-bottom: 18px; }
+    .ch-avatar { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg,#a78bfa,#5b21b6); flex-shrink: 0; }
+    .ch-name { font-size: 16px; font-weight: 600; color: #f3eef9; }
+    .ch-sub { font-size: 12.5px; color: #a495c0; margin-top: 2px; }
+    .stat-pills { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .stat-pill { background: #241a38; border: 1px solid #3a2c56; border-radius: 10px; padding: 10px 16px; }
+    .stat-pill .v { font-size: 20px; font-weight: 700; color: #c4b5fd; font-family: "Instrument Serif"; }
+    .stat-pill .l { font-size: 10.5px; color: #8677a8; text-transform: uppercase; letter-spacing: .04em; margin-top: 2px; }
+    .format-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 12px; }
+    .format-bar-row .lbl { width: 62px; flex-shrink: 0; color: #a495c0; }
+    .format-bar-track { flex: 1; height: 8px; background: #241a38; border-radius: 4px; overflow: hidden; }
+    .format-bar-fill { height: 100%; border-radius: 4px; }
+    .format-bar-row .val { width: 40px; text-align: right; color: #d8cdf0; flex-shrink: 0; }
+
+    /* channel competitors — matches the real "Конкуренты" tab card layout */
+    .cc-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .cc-refresh { background: #f97316; color: #1c0f02; border: none; border-radius: 7px; padding: 7px 14px; font-size: 12px; font-weight: 700; }
+    .cc-updated { font-size: 11px; color: #8677a8; }
+    .cc-header { font-size: 11px; color: #8677a8; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px; }
+    .cc-card { background: #212121; border: 1px solid #3f3f3f; border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+    .cc-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .cc-avatar { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; background-size: cover; background-position: center; }
+    .cc-name { font-size: 13px; font-weight: 600; color: #f1f1f1; flex: 1; }
+    .cc-pct { font-size: 15px; font-weight: 700; color: #f97316; }
+    .cc-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .cc-stat { background: #181818; border-radius: 6px; padding: 6px 8px; }
+    .cc-stat .n { font-size: 12.5px; font-weight: 700; color: #f1f1f1; }
+    .cc-stat .l { font-size: 8.5px; color: #8677a8; text-transform: uppercase; letter-spacing: .03em; }
+    .cc-why { font-size: 10.5px; color: #a78bfa; margin-top: 8px; }
+
+    /* channel analysis — best videos w/ real performance multipliers, title patterns, AI section */
+    .ca-collapsible { font-size: 11px; color: #8677a8; text-transform: uppercase; letter-spacing: .04em; display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #2c2140; margin-bottom: 10px; }
+    .ca-video-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+    .ca-video-thumb { width: 44px; height: 44px; border-radius: 7px; object-fit: cover; flex-shrink: 0; }
+    .ca-video-title { font-size: 11.5px; color: #f1f1f1; line-height: 1.3; margin: 0 0 3px; }
+    .ca-video-views { font-size: 10px; color: #8677a8; }
+    .ca-mult { font-size: 13px; font-weight: 700; color: #a78bfa; flex-shrink: 0; }
+    .ca-ai-box { background: #181818; border: 1px solid #3f3f3f; border-radius: 10px; padding: 14px; margin-top: 16px; }
+    .ca-ai-counter { font-size: 10.5px; color: #8677a8; margin-bottom: 6px; }
+    .ca-ai-title { font-size: 12px; font-weight: 700; color: #f1f1f1; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 10px; }
+    .ca-ai-btn { display: block; width: 100%; background: #a855f7; color: #fff; border: none; border-radius: 8px; padding: 11px; font-size: 12.5px; font-weight: 600; text-align: center; }
+
+    /* channel assets */
+    .as-card { background: #212121; border: 1px solid #3f3f3f; border-radius: 10px; padding: 14px; margin-bottom: 10px; }
+    .as-label { font-size: 10px; color: #8677a8; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px; }
+    .as-avatar-img { width: 64px; height: 64px; border-radius: 50%; display: block; margin: 0 auto 10px; }
+    .as-banner-img { width: 100%; height: 60px; object-fit: cover; border-radius: 6px; margin-bottom: 6px; }
+    .as-meta { font-size: 10.5px; color: #8677a8; margin-bottom: 10px; }
+    .as-btn { display: block; width: 100%; background: #262626; border: 1px solid #3f3f3f; color: #f1f1f1; border-radius: 7px; padding: 9px; font-size: 11.5px; font-weight: 600; text-align: center; }
+
+    /* publish calendar heatmap */
+    .cal-title { font-size: 12px; color: #8677a8; margin-bottom: 12px; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 8px; }
+    .cal-weekday { text-align: center; font-size: 10px; color: #8677a8; padding-bottom: 4px; }
+    .cal-cell { aspect-ratio: 1; border-radius: 4px; }
+    .cal-legend { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #8677a8; margin-top: 8px; }
+    .cal-legend .cal-cell { width: 11px; height: 11px; flex-shrink: 0; }
+
+    /* video Info tab */
+    .info-stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+    .info-stat { background: #212121; border: 1px solid #3f3f3f; border-radius: 8px; padding: 8px 10px; }
+    .info-stat .l { font-size: 8.5px; color: #8677a8; text-transform: uppercase; letter-spacing: .03em; }
+    .info-stat .v { font-size: 12px; font-weight: 700; color: #f1f1f1; margin-top: 2px; }
+    .info-section-label { font-size: 10px; color: #8677a8; text-transform: uppercase; letter-spacing: .04em; margin: 14px 0 8px; }
+    .info-grid4 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .info-tag-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .info-tag { font-size: 10px; background: #212121; border: 1px solid #3f3f3f; border-radius: 999px; padding: 4px 10px; color: #d8cdf0; }
+    .info-notes { background: #212121; border: 1px solid #3f3f3f; border-radius: 8px; padding: 10px; font-size: 11px; color: #6b5a94; }
+
+    /* saved library — dashboard page + sidebar "saved" panel */
+    .lib-frame { background: #0f0f0f; border-radius: 12px; padding: 20px; }
+    .lib-header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .lib-logo { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg,#a78bfa,#7c3aed); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .lib-logo svg { width: 16px; height: 16px; color: #fff; }
+    .lib-header-title { font-size: 14.5px; font-weight: 700; color: #f1f1f1; }
+    .lib-header-sub { font-size: 10.5px; color: #8a8a8f; margin-top: 1px; }
+    .lib-settings { margin-left: auto; font-size: 11px; color: #f1f1f1; border: 1px solid #3f3f3f; border-radius: 8px; padding: 7px 12px; flex-shrink: 0; }
+    .lib-tabs { display: flex; gap: 4px; background: #171717; border-radius: 10px; padding: 4px; margin-bottom: 16px; }
+    .lib-tab { flex: 1; text-align: center; font-size: 11.5px; color: #aaaaaa; padding: 8px; border-radius: 7px; }
+    .lib-tab.active { background: #2a2a2a; color: #fff; font-weight: 600; }
+    .lib-stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 20px; }
+    .lib-stat { background: #171717; border-radius: 10px; padding: 14px; text-align: center; }
+    .lib-stat .n { font-size: 22px; font-weight: 700; color: #f1f1f1; }
+    .lib-stat .l { font-size: 10px; color: #8a8a8f; margin-top: 4px; }
+    .lib-section-label { font-size: 10.5px; color: #8a8a8f; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px; }
+    .lib-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+    .lib-card { background: #171717; border-radius: 10px; overflow: hidden; }
+    .lib-thumb-wrap { position: relative; }
+    .lib-thumb-wrap img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
+    .lib-badge { position: absolute; left: 6px; bottom: 6px; font-size: 8.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; background: rgba(0,0,0,.7); color: #fff; border-radius: 4px; padding: 2px 6px; }
+    .lib-card-body { padding: 10px 10px 12px; }
+    .lib-card-title { font-size: 11px; font-weight: 600; color: #f1f1f1; line-height: 1.35; margin: 0 0 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .lib-card-channel { font-size: 10px; color: #8a8a8f; margin-bottom: 3px; }
+    .lib-card-meta { font-size: 9.5px; color: #6a6a6a; margin-bottom: 10px; }
+    .lib-card-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 6px; }
+    .lib-abtn { font-size: 8.5px; text-align: center; border-radius: 6px; padding: 6px 2px; font-weight: 600; }
+    .lib-abtn.white { background: #f1f1f1; color: #0f0f0f; }
+    .lib-abtn.purple { background: #a855f7; color: #fff; }
+    .lib-card-open-row { display: flex; gap: 5px; }
+    .lib-open { flex: 1; text-align: center; font-size: 10px; color: #f1f1f1; border: 1px solid #3f3f3f; border-radius: 6px; padding: 6px; }
+    .lib-remove { width: 30px; flex-shrink: 0; text-align: center; font-size: 10px; color: #f87171; border: 1px solid rgba(248,113,113,.35); border-radius: 6px; }
+    .lib-side-panel { width: 220px; flex-shrink: 0; background: #171717; border-radius: 10px; padding: 12px; }
+    .lib-side-head { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #f1f1f1; margin-bottom: 10px; }
+    .lib-side-tabs { display: flex; gap: 10px; font-size: 10px; color: #8a8a8f; border-bottom: 1px solid #2a2a2a; padding-bottom: 8px; margin-bottom: 8px; }
+    .lib-side-tabs .active { color: #f1f1f1; font-weight: 600; }
+    .lib-side-row { display: flex; gap: 8px; align-items: center; padding: 6px 0; }
+    .lib-side-row img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
+    .lib-side-row-title { font-size: 10px; color: #f1f1f1; line-height: 1.3; margin: 0 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lib-side-row-meta { font-size: 9px; color: #7a7a7a; }
+    .lib-side-open { display: block; text-align: center; font-size: 10px; color: #f1f1f1; border: 1px solid #3f3f3f; border-radius: 7px; padding: 8px; margin-top: 8px; }
+    .lib-body-row { display: flex; gap: 16px; align-items: flex-start; }
+
+    /* real transcript panel */
+    .tr-source-box { font-size: 10.5px; color: #8677a8; background: #212121; border: 1px solid #3f3f3f; border-radius: 8px; padding: 8px 10px; margin-bottom: 12px; line-height: 1.6; }
+    .tr-view-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+    .tr-view-tab { font-size: 10px; padding: 5px 10px; border-radius: 6px; color: #8677a8; }
+    .tr-view-tab.active { background: #212121; color: #f1f1f1; }
+    .tr-actions { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+    .tr-action-btn { font-size: 10.5px; background: #212121; border: 1px solid #3f3f3f; border-radius: 6px; padding: 6px 10px; color: #d8cdf0; }
+    .tr-timecode-btn { display: block; width: 100%; background: #0ea5e9; color: #fff; border: none; border-radius: 7px; padding: 9px; font-size: 11.5px; font-weight: 600; text-align: center; margin-bottom: 8px; }
+
+    /* real YouTube Studio "Mid-roll ad slots" modal — matches the live screenshots exactly:
+       our panel (interval dropdown + purple "place" circle + purple-outline "clear") sits INLINE in
+       the modal's own header, right before the native Discard/Continue buttons — it's not a separate
+       floating box. Colors are the extension's real BRAND consts from src/studio/adBreaks.ts:
+       accent #a855f7 (place button, clear outline), warn #eab308 (the pulsing checkbox highlight). */
+    .studio-modal { background: #212121; border-radius: 12px; padding: 20px 22px; }
+    .studio-modal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .studio-modal-icon { width: 26px; height: 26px; flex-shrink: 0; color: #f1f1f1; }
+    .studio-modal-icon svg { width: 100%; height: 100%; }
+    .studio-modal-title { font-size: 15px; font-weight: 600; color: #f1f1f1; flex: 1; }
+    .studio-ourpanel { display: flex; align-items: center; gap: 8px; }
+    .studio-dd { display: flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border-radius: 14px; border: 1px solid rgba(168,85,247,.5); background: rgba(168,85,247,.12); color: #d8b4fe; font-size: 12px; }
+    .studio-dd svg { width: 10px; height: 10px; color: #d8b4fe; }
+    .studio-place, .studio-clear { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .studio-place svg, .studio-clear svg { width: 14px; height: 14px; }
+    .studio-place { background: #a855f7; color: #fff; }
+    .studio-clear { background: #3f3f3f; color: #f1f1f1; }
+    .studio-modal-btns { display: flex; gap: 8px; margin-left: 6px; }
+    .studio-mbtn { font-size: 12px; padding: 8px 16px; border-radius: 18px; font-weight: 500; }
+    .studio-mbtn.primary { background: #f1f1f1; color: #0f0f0f; font-weight: 600; }
+    .studio-mbtn.ghost { background: transparent; border: 1px solid #3f3f3f; color: #f1f1f1; }
+    .studio-banner { display: flex; align-items: center; gap: 8px; background: #1a2733; border-radius: 8px; padding: 10px 12px; font-size: 11.5px; color: #d8e6f0; margin-bottom: 16px; }
+    .studio-banner svg { width: 15px; height: 15px; color: #3ea6ff; flex-shrink: 0; }
+    .studio-banner a { color: #3ea6ff; margin-left: auto; flex-shrink: 0; }
+    .studio-body-row { display: flex; gap: 18px; align-items: stretch; }
+    .studio-slots-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .studio-add { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; font-size: 12px; font-weight: 500; color: #f1f1f1; background: #3f3f3f; border-radius: 16px; padding: 7px 14px; margin-bottom: 12px; }
+    .studio-slots-list { max-height: 152px; overflow: hidden; position: relative; padding-right: 10px; }
+    .studio-slots-list::after { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 3px; border-radius: 2px; background: #4a4a4a; }
+    .studio-slot-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #303030; font-size: 12px; color: #f1f1f1; }
+    .studio-slot-row span:first-child { flex: 1; }
+    .studio-slot-time { background: #181818; border: 1px solid #3f3f3f; border-radius: 6px; padding: 5px 10px; font-size: 11.5px; color: #d8cdf0; font-variant-numeric: tabular-nums; }
+    .studio-slot-trash { width: 15px; height: 15px; color: #8a8a8f; flex-shrink: 0; }
+    .studio-checkbox-row { display: flex; align-items: flex-start; gap: 10px; margin-top: auto; padding: 12px 10px 4px; }
+    .studio-checkbox { width: 16px; height: 16px; border-radius: 3px; border: 1.5px solid #8a8a8f; flex-shrink: 0; margin-top: 1px; }
+    .studio-checkbox-label { font-size: 12.5px; color: #f1f1f1; font-weight: 600; }
+    .studio-checkbox-sub { font-size: 11px; color: #aaaaaa; margin-top: 3px; line-height: 1.55; }
+    .studio-checkbox-sub a { color: #3ea6ff; }
+    .studio-preview { flex: 1; max-width: 320px; flex-shrink: 0; position: relative; border-radius: 10px; overflow: hidden; }
+    .studio-preview img { width: 100%; height: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
+    .studio-preview-controls { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 14px; padding: 8px 12px; background: linear-gradient(0deg, rgba(0,0,0,.55), transparent); }
+    .studio-preview-controls svg { width: 16px; height: 16px; color: #fff; }
+    .studio-preview-controls svg.gear { margin-left: auto; width: 15px; height: 15px; }
+    .studio-tl-toolbar { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
+    .studio-tl-time { font-size: 11.5px; color: #f1f1f1; background: #0d0d0f; border: 1px solid #3f3f3f; border-radius: 6px; padding: 5px 10px; font-variant-numeric: tabular-nums; }
+    .studio-tl-undo, .studio-tl-redo { font-size: 11.5px; color: #f1f1f1; padding: 5px 8px; }
+    .studio-tl-redo { color: #5a5a5a; }
+    .studio-tl-zoom { display: flex; align-items: center; gap: 8px; margin-left: auto; color: #aaaaaa; }
+    .studio-tl-zoom svg { width: 15px; height: 15px; }
+    .studio-tl-zoom-track { width: 70px; height: 3px; border-radius: 2px; background: #3f3f3f; position: relative; }
+    .studio-tl-zoom-dot { position: absolute; left: 30%; top: 50%; transform: translate(-50%,-50%); width: 11px; height: 11px; border-radius: 50%; background: #f1f1f1; }
+    .studio-ruler { display: flex; justify-content: space-between; font-size: 10.5px; color: #8a8a8f; margin-top: 12px; padding: 0 2px; font-variant-numeric: tabular-nums; }
+    .studio-timeline-wrap { background: #0d0d0f; border-radius: 8px; padding: 12px; margin-top: 8px; }
+    .studio-tl-row { display: flex; align-items: center; height: 20px; }
+    .studio-tl-icon { width: 20px; flex-shrink: 0; color: #6a6a6a; }
+    .studio-tl-icon svg { width: 13px; height: 13px; }
+    .studio-tl-ticks { flex: 1; display: flex; gap: 3px; align-items: center; height: 100%; }
+    .studio-tl-tick { width: 1.5px; height: 12px; background: #f1f1f1; flex-shrink: 0; }
+    .studio-tl-blocks { flex: 1; display: flex; gap: 2px; height: 20px; }
+    .studio-tl-block { flex: 1; border-radius: 2px; }
+    .studio-tl-wave { flex: 1; height: 16px; background: repeating-linear-gradient(90deg, #4a4a4a 0 1px, transparent 1px 3px); }
+
+    /* shorts */
+    .shorts-mock-wrap { display: flex; justify-content: center; gap: 18px; align-items: center; }
+    .shorts-frame { width: 220px; height: 391px; border-radius: 22px; overflow: hidden; position: relative; border: 4px solid #2a2038; flex-shrink: 0; }
+    .shorts-frame img { width: 100%; height: 100%; object-fit: cover; }
+    .shorts-frame::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.55), transparent 40%); }
+    .shorts-caption { position: absolute; left: 14px; bottom: 16px; right: 60px; color: #fff; font-size: 12px; z-index: 2; font-weight: 500; }
+    .shorts-actions { display: flex; flex-direction: column; gap: 14px; background: #1a1226; border: 1px solid #3a2c56; border-radius: 20px; padding: 14px 10px; }
+    .shorts-btn { width: 40px; height: 40px; border-radius: 50%; background: #241a38; display: flex; align-items: center; justify-content: center; }
+    .shorts-btn svg { width: 18px; height: 18px; }
+
+    /* download */
+    .dl-card { background: #241a38; border: 1px solid #3a2c56; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+    .dl-card h4 { margin: 0 0 12px; font-size: 13px; color: #d8cdf0; }
+    .dl-field { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; color: #a495c0; margin-bottom: 10px; }
+    .dl-field .dropdown { background: #150f20; border: 1px solid #4c3a6e; border-radius: 6px; padding: 6px 12px; color: #f3eef9; font-size: 12px; }
+    .dl-btn { width: 100%; background: #16a34a; color: #fff; border: none; border-radius: 8px; padding: 11px; font-size: 13px; font-weight: 600; text-align: center; }
+    .dl-progress-row { background: #150f20; border: 1px solid #2c2140; border-radius: 8px; padding: 10px 12px; }
+    .dl-progress-row .ptitle { font-size: 11.5px; color: #d8cdf0; margin-bottom: 6px; }
+    .dl-progress-track { height: 6px; background: #2c2140; border-radius: 3px; overflow: hidden; margin-bottom: 5px; }
+    .dl-progress-fill { height: 100%; background: #16a34a; border-radius: 3px; }
+    .dl-progress-meta { display: flex; justify-content: space-between; font-size: 10.5px; color: #8677a8; }
+
+    /* screenshot */
+    .shot-row { display: flex; align-items: center; gap: 18px; }
+    .shot-frame { width: 220px; height: 124px; border-radius: 10px; overflow: hidden; flex-shrink: 0; }
+    .shot-frame img { width: 100%; height: 100%; object-fit: cover; }
+    .shot-arrow { color: #6b5a94; flex-shrink: 0; }
+    .shot-arrow svg { width: 28px; height: 28px; }
+    .shot-result { width: 220px; flex-shrink: 0; }
+    .shot-result img { width: 100%; border-radius: 10px; display: block; }
+    .shot-format-row { display: flex; gap: 8px; margin-top: 10px; }
+    .shot-format-pill { font-size: 11px; padding: 5px 12px; border-radius: 999px; border: 1px solid #3a2c56; color: #a495c0; }
+    .shot-format-pill.active { background: #a78bfa; color: #1c1029; border-color: #a78bfa; font-weight: 600; }
+
+    /* transcript */
+    .tr-search { display: flex; align-items: center; gap: 8px; background: #150f20; border: 1px solid #3a2c56; border-radius: 8px; padding: 9px 12px; margin-bottom: 14px; }
+    .tr-search svg { width: 14px; height: 14px; color: #6b5a94; }
+    .tr-search span { font-size: 12.5px; color: #6b5a94; }
+    .tr-line { display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid #201731; }
+    .tr-line:last-child { border-bottom: none; }
+    .tr-time { font-family: "SF Mono", Consolas, monospace; font-size: 11px; color: #7c6a9e; flex-shrink: 0; width: 44px; padding-top: 1px; }
+    .tr-text { font-size: 13.5px; color: #d8cdf0; line-height: 1.5; }
+    .tr-text mark { background: rgba(167,139,250,.35); color: #f3eef9; border-radius: 3px; padding: 0 2px; }
+
+
+    @media (max-width: 900px) {
+      h1 { font-size: 48px; }
+      .steps { grid-template-columns: 1fr; }
+      .feature-row, .feature-row.reverse { flex-direction: column; }
+      .feature-copy { flex: none; }
+    }
+  </style>
+</style>
+</head>
+<body>
+<div>
+  <nav class="wrap">
+    <div class="brand"><img src="logo.png" alt=""> CreateScope</div>
+  </nav>
+
+  <header class="hero">
+    <div class="wrap">
+      <div class="eyebrow">Chrome · Edge · Opera · Brave — локальная установка</div>
+      <h1 class="serif">Исследование YouTube,<br>оформленное <em>как должно быть</em></h1>
+      <p class="lead">Скачивание, транскрипт, AI-анализ и поиск конкурентов — встроены прямо в интерфейс YouTube, ничего лишнего не открывая.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="CreateScope.zip" download>Скачать CreateScope</a>
+        <a class="btn btn-text" href="#install">Инструкция по установке →</a>
+      </div>
+
+      <div class="demo-wrap">
+        <div class="float-card float-1">
+          <div class="num">87%</div>
+          <div class="lbl">совпадение темы</div>
+        </div>
+        <div class="browser">
+          <div class="yt-masthead">
+            <div class="yt-logo">
+              <div class="mark"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+              <div class="word">YouTube</div>
+            </div>
+            <div class="yt-search">
+              <div class="yt-search-input"></div>
+              <div class="yt-search-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></div>
+            </div>
+            <div class="yt-mast-icons">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>
+              <div class="yt-mast-avatar"></div>
+            </div>
+          </div>
+          <div class="yt-watch-grid">
+            <div class="yt-primary">
+              <div class="yt-video">
+                <img src="headphones.jpg" alt="Реальный пример видео">
+                <div class="yt-play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+              </div>
+              <div class="yt-title">Sony WH-1000XM6 Review: Back on the Throne!</div>
+              <div class="yt-views-row">1,4 млн просмотров · 2 недели назад</div>
+              <div class="yt-channel-row">
+                <div class="yt-ch-avatar"></div>
+                <div>
+                  <div class="yt-ch-name">Sound Lab Review</div>
+                  <div class="yt-ch-subs">412 тыс. подписчиков</div>
+                </div>
+                <div class="yt-subscribe">Подписаться</div>
+              </div>
+            </div>
+            <div class="yt-secondary">
+              <div class="panel">
+                <div class="panel-tools">
+                  <div class="tool-btn" style="color:#16a34a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></div>
+                  <div class="tool-btn" style="color:#0ea5e9"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M9 12h6"/><path d="M9 16h6"/></svg></div>
+                  <div class="tool-btn" style="color:#eab308"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg></div>
+                  <div class="tool-btn" style="color:#a78bfa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></div>
+                  <div class="tool-btn" style="color:#c084fc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.6 4.9.4-3.7 3.3 1.1 4.8L12 13.9 7.8 16l1.1-4.8-3.7-3.3 4.9-.4z"/></svg></div>
+                </div>
+                <div class="panel-tabs">
+                  <div class="panel-tab">Инфо</div>
+                  <div class="panel-tab">Скачать</div>
+                  <div class="panel-tab active">Похожие</div>
+                  <div class="panel-tab">Анализ</div>
+                </div>
+                <div class="panel-body">
+                  <div class="filter-row">
+                    <div class="filter-chip">3 месяца</div>
+                    <div class="filter-chip">Видео</div>
+                  </div>
+                  <div class="result-card">
+                    <img class="thumb" src="minecraft.jpg" alt="">
+                    <div>
+                      <p class="result-title">The Best Wireless Headphones to Buy in 2026</p>
+                      <div class="result-meta"><span class="match-pct">87%</span> совпадение</div>
+                    </div>
+                  </div>
+                  <div class="result-card">
+                    <img class="thumb" src="coffee.jpg" alt="">
+                    <div>
+                      <p class="result-title">Best Premium Headphones 2026 — Tested &amp; Compared</p>
+                      <div class="result-meta"><span class="match-pct">74%</span> совпадение</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- our panel sits inline above YouTube's own recommended list — not a floating overlay -->
+              <div class="yt-related-item">
+                <img class="yt-related-thumb" src="nature.jpg" alt="">
+                <div>
+                  <p class="yt-related-title">Durmitor National Park — Prutaš Peak Hike</p>
+                  <div class="yt-related-meta">Trailhead Diaries · 147 тыс. просмотров</div>
+                </div>
+              </div>
+              <div class="yt-related-item">
+                <img class="yt-related-thumb" src="coffee.jpg" alt="">
+                <div>
+                  <p class="yt-related-title">How To Make Pour Over Coffee — Simple V60 Tutorial</p>
+                  <div class="yt-related-meta">Brew &amp; Pour · 64 тыс. просмотров</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section>
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="serif">Каждый инструмент — на реальном примере</h2>
+        <p class="section-lead">Не иконки с подписями, а то, как это выглядит на настоящем видео.</p>
+      </div>
+
+      <!-- 1. Similar videos -->
+      <div class="feature-row">
+        <div class="feature-copy">
+          <div class="showcase-tag">01 — Конкуренты</div>
+          <h3 class="serif">Похожие видео,<br>которые правда похожи</h3>
+          <p>Движок сравнивает тему, а не отдельные слова: видео про обзор наушников находит именно другие обзоры наушников, а не всё подряд с тем же брендом в заголовке.</p>
+          <p>Каждый результат — с процентом совпадения и причиной, почему он в выдаче: общая тема, теги, формат.</p>
+        </div>
+        <div class="feature-visual">
+          <div class="mock-frame">
+            <div class="result-card" style="margin-bottom:10px">
+              <img class="thumb" src="headphones.jpg" alt="" style="width:88px;height:54px">
+              <div>
+                <p class="result-title" style="font-size:13px">Ваше видео: Sony WH-1000XM6 Review</p>
+                <div class="result-meta" style="font-size:11px">Источник</div>
+              </div>
+            </div>
+            <div class="result-card">
+              <img class="thumb" src="minecraft.jpg" alt="" style="width:88px;height:54px">
+              <div>
+                <p class="result-title" style="font-size:13px">The Best Wireless Headphones to Buy in 2026</p>
+                <div class="result-meta" style="font-size:11px"><span class="match-pct">87%</span> · тема + формат совпали</div>
+              </div>
+            </div>
+            <div class="result-card" style="margin-bottom:0">
+              <img class="thumb" src="coffee.jpg" alt="" style="width:88px;height:54px">
+              <div>
+                <p class="result-title" style="font-size:13px">Best Premium Headphones 2026 — Tested &amp; Compared</p>
+                <div class="result-meta" style="font-size:11px"><span class="match-pct">74%</span> · тема совпала</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Channel analyzer -->
+  <section class="alt">
+    <div class="wrap">
+      <div class="feature-row reverse">
+        <div class="feature-copy">
+          <div class="showcase-tag">02 — Конкуренты канала</div>
+          <h3 class="serif">Похожие каналы,<br>с медианой и активностью</h3>
+          <p>Не просто «похожий канал», а процент совпадения темы, медиана просмотров и уровень активности — чтобы сразу видеть, кто реально конкурент, а кто просто рядом по касательной.</p>
+          <p>Каждая карточка разворачивается в объяснение, почему канал попал в список.</p>
+        </div>
+        <div class="feature-visual">
+          <div class="mock-frame">
+            <div class="cc-toolbar"><div class="cc-refresh">Обновить</div><div class="cc-updated">Обновлено только что</div></div>
+            <div class="cc-header">Конкуренты (10)</div>
+            <div class="cc-card">
+              <div class="cc-top"><div class="cc-avatar" style="background-image:url(nature.jpg)"></div><div class="cc-name">MIKAN</div><div class="cc-pct">100%</div></div>
+              <div class="cc-stats">
+                <div class="cc-stat"><div class="n">4/4</div><div class="l">Тема</div></div>
+                <div class="cc-stat"><div class="n">3,9 млн</div><div class="l">Медиана</div></div>
+                <div class="cc-stat"><div class="n">—</div><div class="l">Активность</div></div>
+              </div>
+            </div>
+            <div class="cc-card">
+              <div class="cc-top"><div class="cc-avatar" style="background-image:url(minecraft.jpg)"></div><div class="cc-name">Block and Beat</div><div class="cc-pct">100%</div></div>
+              <div class="cc-stats">
+                <div class="cc-stat"><div class="n">30/30</div><div class="l">Тема</div></div>
+                <div class="cc-stat"><div class="n">76,5 тыс.</div><div class="l">Медиана</div></div>
+                <div class="cc-stat"><div class="n">Средняя</div><div class="l">Активность</div></div>
+              </div>
+              <div class="cc-why">▾ Почему это совпадает</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="feature-row">
+        <div class="feature-copy">
+          <div class="showcase-tag">03 — Анализ канала</div>
+          <h3 class="serif">Что реально выстрелило</h3>
+          <p>Лучшие недавние видео с множителем относительно медианы канала (5,1× значит впятеро лучше обычного результата), с повторяющимися паттернами заголовков и с отдельным ИИ-разбором ниши по кнопке.</p>
+        </div>
+        <div class="feature-visual">
+          <div class="mock-frame">
+            <div class="ca-collapsible">Лучшие недавние видео ▾</div>
+            <div class="ca-video-row">
+              <img class="ca-video-thumb" src="minecraft.jpg" alt="">
+              <div style="flex:1;min-width:0"><p class="ca-video-title">I Survived 100 Days Building the ULTIMATE BASE</p><div class="ca-video-views">237 тыс. просмотров</div></div>
+              <div class="ca-mult">5,1×</div>
+            </div>
+            <div class="ca-video-row">
+              <img class="ca-video-thumb" src="nature.jpg" alt="">
+              <div style="flex:1;min-width:0"><p class="ca-video-title">Durmitor National Park — Prutaš Peak Hike</p><div class="ca-video-views">147 тыс. просмотров</div></div>
+              <div class="ca-mult">3,2×</div>
+            </div>
+            <div class="ca-ai-box">
+              <div class="ca-ai-counter">0 ИИ-анализов сегодня</div>
+              <div class="ca-ai-title">ИИ-анализ канала</div>
+              <div class="ca-ai-btn">Проанализировать канал</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt">
+    <div class="wrap">
+      <div class="feature-row reverse">
+        <div class="feature-copy">
+          <div class="showcase-tag">04 — Материалы канала</div>
+          <h3 class="serif">Аватар и баннер —<br>сразу в нужном размере</h3>
+          <p>Не нужно вытаскивать баннер через просмотр кода страницы: полный размер и вариант оформления показаны сразу, скачивание — в один клик.</p>
+        </div>
+        <div class="feature-visual">
+          <div class="mock-frame">
+            <div class="as-card">
+              <div class="as-label">Аватар</div>
+              <img class="as-avatar-img" src="minecraft.jpg" alt="">
+              <div class="as-btn">Скачать аватар</div>
+            </div>
+            <div class="as-card">
+              <div class="as-label">Баннер</div>
+              <img class="as-banner-img" src="headphones.jpg" alt="">
+              <div class="as-meta">Полный размер: 2048×1152 · ТВ / Полное оформление</div>
+              <div class="as-btn">Скачать баннер</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="feature-row">
+        <div class="feature-copy">
+          <div class="showcase-tag">05 — Календарь публикаций</div>
+          <h3 class="serif">Когда канал реально публикует</h3>
+          <p>Тепловая карта по дням недели вместо размытого «выходит примерно раз в неделю» — точное время берётся со страницы самого видео, там, где оно уже загрузилось.</p>
+        </div>
+        <div class="feature-visual">
+          <div class="mock-frame">
+            <div class="cal-title">32 загрузки за 27 дней из последних 30</div>
+            <div class="cal-grid">
+              <div class="cal-weekday">Пн</div><div class="cal-weekday">Вт</div><div class="cal-weekday">Ср</div><div class="cal-weekday">Чт</div><div class="cal-weekday">Пт</div><div class="cal-weekday">Сб</div><div class="cal-weekday">Вс</div>
+              <div class="cal-cell" style="background:#6d28d9"></div><div class="cal-cell" style="background:#6d28d9"></div><div class="cal-cell" style="background:#6d28d9"></div><div class="cal-cell" style="background:#6d28d9"></div><div class="cal-cell" style="background:#6d28d9"></div><div class="cal-cell" style="background:#6d28d9"></div><div class="cal-cell" style="background:#6d28d9"></div>
+              <div class="cal-cell" style="background:#6d28d9"></div><div class="cal-cell" style="background:#6d28d9"></div><div class="cal-cell" style="background:#6d28d9"></div><div class="cal-cell" style="background:#6d28d9"></div><div class="cal-cell" style="background:#6d28d9"></div><div class="cal-cell" style="background:#6d28d9"></div><div class="cal-cell" style="background:#6d28d9"></div>
+              <div class="cal-cell" style="background:#6d28d9"></div><div class="cal-cell" style="background:#6d28d9"></div><div class="cal-cell" style="background:#6d28d9"></div><div class="cal-cell" style="background:#6d28d9"></div><div class="cal-cell" style="background:#a78bfa"></div><div class="cal-cell" style="background:#2c2140"></div><div class="cal-cell" style="background:#6d28d9"></div>
+              <div class="cal-cell" style="background:#a78bfa"></div><div class="cal-cell" style="background:#2c2140"></div><div class="cal-cell" style="background:#6d28d9"></div><div class="cal-cell" style="background:#6d28d9"></div><div class="cal-cell" style="background:#6d28d9"></div><div class="cal-cell" style="background:#2c2140"></div><div class="cal-cell" style="background:#6d28d9"></div>
+            </div>
+            <div class="cal-legend"><span>Меньше</span><div class="cal-cell" style="background:#2c2140"></div><div class="cal-cell" style="background:#6d28d9"></div><div class="cal-cell" style="background:#a78bfa"></div><span>Больше</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Shorts -->
+  <section class="alt">
+    <div class="wrap">
+      <div class="feature-row">
+        <div class="feature-copy">
+          <div class="showcase-tag">06 — Shorts</div>
+          <h3 class="serif">Те же инструменты<br>на вертикальном видео</h3>
+          <p>На Shorts панель превращается в вертикальную колонку круглых кнопок сбоку — так, как ожидаешь увидеть рядом с лайком и репостом на самом YouTube.</p>
+          <ul>
+            <li>Скачивание ролика Shorts как отдельного файла</li>
+            <li>Скриншот кадра</li>
+            <li>Сохранить в проект</li>
+            <li>Быстрый AI-анализ</li>
+          </ul>
+        </div>
+        <div class="feature-visual">
+          <div class="shorts-mock-wrap">
+            <div class="shorts-frame">
+              <img src="lifehack.jpg" alt="Реальный пример Shorts">
+              <div class="shorts-caption">Реальный Short — вертикальный формат</div>
+            </div>
+            <div class="shorts-actions">
+              <div class="shorts-btn" style="color:#16a34a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></div>
+              <div class="shorts-btn" style="color:#eab308"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg></div>
+              <div class="shorts-btn" style="color:#c084fc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.6 4.9.4-3.7 3.3 1.1 4.8L12 13.9 7.8 16l1.1-4.8-3.7-3.3 4.9-.4z"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Download -->
+  <section>
+    <div class="wrap">
+      <div class="feature-row reverse">
+        <div class="feature-copy">
+          <div class="showcase-tag">07 — Скачивание</div>
+          <h3 class="serif">Выбрал качество —<br>получил файл</h3>
+          <p>Список реальных доступных качеств для конкретного видео (не общий список «до 1080p», а то, что действительно отдал YouTube), MP4 для видео, MP3 или лучший исходный формат для аудио.</p>
+          <p>Очередь загрузок с прогрессом, скоростью и оставшимся временем — без открытия сторонних сайтов и без рекламы.</p>
+        </div>
+        <div class="feature-visual">
+          <div class="mock-frame">
+            <div class="dl-card">
+              <h4>Видео</h4>
+              <div class="dl-field"><span>Качество</span><span class="dropdown">1080p60 ▾</span></div>
+              <div class="dl-field"><span>Формат</span><span>MP4</span></div>
+              <div class="dl-btn">Скачать видео</div>
+            </div>
+            <div class="dl-progress-row" style="display:flex; gap:10px; align-items:center;">
+              <img src="lifehack.jpg" alt="" style="width:48px;height:30px;border-radius:5px;object-fit:cover;flex-shrink:0;">
+              <div style="flex:1;min-width:0;">
+                <div class="ptitle">Testing a life hack.mp4</div>
+                <div class="dl-progress-track"><div class="dl-progress-fill" style="width:64%"></div></div>
+                <div class="dl-progress-meta"><span>64% · 4.2 МБ/с</span><span>0:18 осталось</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Screenshot -->
+  <section class="alt">
+    <div class="wrap">
+      <div class="feature-row">
+        <div class="feature-copy">
+          <div class="showcase-tag">08 — Скриншот</div>
+          <h3 class="serif">Кадр из видео —<br>в один клик</h3>
+          <p>Захватывает именно то, что сейчас на экране, без сторонних расширений и программ для скриншотов. PNG для точности, JPEG — если важен размер файла.</p>
+        </div>
+        <div class="feature-visual">
+          <div class="mock-frame">
+            <div class="shot-row">
+              <div class="shot-frame"><img src="nature.jpg" alt=""></div>
+              <div class="shot-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></div>
+              <div class="shot-result">
+                <img src="nature.jpg" alt="">
+                <div class="shot-format-row">
+                  <div class="shot-format-pill active">PNG</div>
+                  <div class="shot-format-pill">JPEG</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. Transcript -->
+  <section>
+    <div class="wrap">
+      <div class="feature-row reverse">
+        <div class="feature-copy">
+          <div class="showcase-tag">09 — Транскрипт и сценарий</div>
+          <h3 class="serif">Вытащить текст видео<br>целиком</h3>
+          <p>Полный транскрипт с таймкодами и поиском по содержимому — работает и там, где YouTube формально не показывает субтитры (тогда используется альтернативный источник).</p>
+          <p>Отдельно — генерация таймкодов и извлечение всего видео целиком одной кнопкой.</p>
+        </div>
+        <div class="feature-visual">
+          <div class="mock-frame">
+            <div class="tr-source-box">Источник: автоматические субтитры<br>Доступно: en</div>
+            <div class="tr-view-tabs">
+              <div class="tr-view-tab active">Таймлайн</div>
+              <div class="tr-view-tab">Чистый текст</div>
+              <div class="tr-view-tab">Абзацы</div>
+              <div class="tr-view-tab">Как есть</div>
+            </div>
+            <div class="tr-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><span>Поиск по транскрипту…</span></div>
+            <div class="tr-actions">
+              <div class="tr-action-btn">Копировать текст</div>
+              <div class="tr-action-btn">Копировать с таймкодами</div>
+              <div class="tr-action-btn">Экспорт…</div>
+            </div>
+            <div class="tr-timecode-btn">Создать таймкоды</div>
+            <div class="tr-timecode-btn" style="background:#16a34a">Извлечь всё видео</div>
+            <div class="tr-line" style="margin-top:6px"><span class="tr-time">00:00</span><span class="tr-text">Я не знаю, у меня улыбка до ушей, потому что сейчас я нахожусь не на Родмире…</span></div>
+            <div class="tr-line"><span class="tr-time">00:08</span><span class="tr-text">Хасл. И первым делом, что мне надо проверить — босс ли я здесь или нет.</span></div>
+            <div class="tr-line"><span class="tr-time">00:14</span><span class="tr-text">Поэтому мы смотрим. Ема, как выглядит. Я зашёл ночью, сейчас 180…</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. Studio ad breaks -->
+  <section class="alt">
+    <div class="wrap">
+      <div class="feature-row">
+        <div class="feature-copy">
+          <div class="showcase-tag">10 — YouTube Studio</div>
+          <h3 class="serif">Живёт прямо в шапке<br>родного диалога Studio</h3>
+          <p>Никакого отдельного окна — выпадающий список интервала, фиолетовая кнопка «расставить» и кнопка «очистить» встроены в шапку диалога «Mid-roll ad slots», перед стандартными «Back» / «Continue».</p>
+          <p>Если у канала уже включены автоматические паузы YouTube — кнопки гаснут, а сам чекбокс подсвечивается жёлтым, чтобы было понятно, что нужно сначала выключить его. Здесь показано активное состояние: авточекбокс выключен, и наши кнопки полностью доступны.</p>
+        </div>
+        <div class="feature-visual">
+          <div class="mock-frame" style="padding:0;overflow:hidden">
+            <div class="studio-modal">
+              <div class="studio-modal-head">
+                <div class="studio-modal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 6.5v11"/><path d="M9.2 8.7a2.3 2.3 0 0 1 2.2-1.9h1.3a2.3 2.3 0 0 1 0 4.6h-1.4a2.3 2.3 0 0 0 0 4.6h1.3a2.3 2.3 0 0 0 2.2-1.9"/></svg></div>
+                <div class="studio-modal-title">Mid-roll ad slots</div>
+                <div class="studio-ourpanel">
+                  <div class="studio-dd">1m <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></div>
+                  <div class="studio-place"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg></div>
+                  <div class="studio-clear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/></svg></div>
+                </div>
+                <div class="studio-modal-btns"><div class="studio-mbtn ghost">Discard changes</div><div class="studio-mbtn primary">Continue</div></div>
+              </div>
+              <div class="studio-banner">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5"/><path d="M12 8h.01"/></svg>
+                You now can see which ad slots are unlikely to show ads
+                <a href="#">Learn more</a>
+              </div>
+              <div class="studio-body-row">
+                <div class="studio-slots-col">
+                  <div class="studio-add">+ Insert ad slot</div>
+                  <div class="studio-slots-list">
+                    <div class="studio-slot-row"><span>Ad slot (Manual)</span><span class="studio-slot-time">00:30:00</span><svg class="studio-slot-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/></svg></div>
+                    <div class="studio-slot-row"><span>Ad slot (Manual)</span><span class="studio-slot-time">01:00:00</span><svg class="studio-slot-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/></svg></div>
+                    <div class="studio-slot-row"><span>Ad slot (Manual)</span><span class="studio-slot-time">01:30:00</span><svg class="studio-slot-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/></svg></div>
+                    <div class="studio-slot-row"><span>Ad slot (Manual)</span><span class="studio-slot-time">02:00:00</span><svg class="studio-slot-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/></svg></div>
+                  </div>
+                  <div class="studio-checkbox-row">
+                    <div class="studio-checkbox"></div>
+                    <div>
+                      <div class="studio-checkbox-label">Automatic ad slots</div>
+                      <div class="studio-checkbox-sub">Automatic ad slots work alongside manual ad slots, creating additional opportunities to show mid-roll ads at natural breakpoints. <a href="#">Learn more</a></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="studio-preview">
+                  <img src="minecraft.jpg" alt="Реальный пример видео">
+                  <div class="studio-preview-controls">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 10v4h4l5 5V5L7 10H3z"/></svg>
+                    <svg class="gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+                  </div>
+                </div>
+              </div>
+              <div class="studio-tl-toolbar">
+                <div class="studio-tl-time">00:00:00</div>
+                <div class="studio-tl-undo">↶ Undo</div>
+                <div class="studio-tl-redo">↷ Redo</div>
+                <div class="studio-tl-zoom">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/><path d="M8 11h6"/></svg>
+                  <div class="studio-tl-zoom-track"><div class="studio-tl-zoom-dot"></div></div>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/><path d="M8 11h6"/><path d="M11 8v6"/></svg>
+                </div>
+              </div>
+              <div class="studio-ruler">
+                <span>00:00:00</span><span>05:00:00</span><span>10:00:00</span><span>15:00:00</span><span>20:23:30</span>
+              </div>
+              <div class="studio-timeline-wrap">
+                <div class="studio-tl-row">
+                  <div class="studio-tl-icon"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg></div>
+                  <div class="studio-tl-ticks">
+                    <div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div><div class="studio-tl-tick"></div>
+                  </div>
+                </div>
+                <div class="studio-tl-row" style="margin-top:5px">
+                  <div class="studio-tl-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M9 5v14"/></svg></div>
+                  <div class="studio-tl-blocks">
+                    <div class="studio-tl-block" style="background:#2f4a6b"></div><div class="studio-tl-block" style="background:#4a7a4f"></div><div class="studio-tl-block" style="background:#6b3f8f"></div><div class="studio-tl-block" style="background:#8a6a2f"></div><div class="studio-tl-block" style="background:#3f7a6b"></div><div class="studio-tl-block" style="background:#7a3f4f"></div><div class="studio-tl-block" style="background:#4f6b3f"></div><div class="studio-tl-block" style="background:#3f4f8a"></div><div class="studio-tl-block" style="background:#8a4f3f"></div><div class="studio-tl-block" style="background:#5a3f7a"></div>
+                  </div>
+                </div>
+                <div class="studio-tl-row" style="margin-top:5px">
+                  <div class="studio-tl-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h2l2-7 4 14 3-10 2 6h5"/></svg></div>
+                  <div class="studio-tl-wave"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="feature-row reverse">
+        <div class="feature-copy">
+          <div class="showcase-tag">11 — Инфо</div>
+          <h3 class="serif">Всё главное про видео —<br>на одном экране</h3>
+          <p>Точная дата и время публикации (не «3 дня назад»), категория, язык, статус монетизации, все теги и хештеги, полное описание — и место для собственных заметок.</p>
+        </div>
+        <div class="feature-visual">
+          <div class="mock-frame">
+            <div class="info-stat-row">
+              <div class="info-stat"><div class="l">Дата</div><div class="v">25 авг. 2026</div></div>
+              <div class="info-stat"><div class="l">Время</div><div class="v">16:00</div></div>
+              <div class="info-stat"><div class="l">Возраст</div><div class="v">Сегодня</div></div>
+            </div>
+            <div class="info-section-label">Контент</div>
+            <div class="info-grid4">
+              <div class="info-stat"><div class="l">Категория</div><div class="v">Игры</div></div>
+              <div class="info-stat"><div class="l">Язык</div><div class="v">Неизвестно</div></div>
+              <div class="info-stat"><div class="l">Транскрипт</div><div class="v">Нет</div></div>
+              <div class="info-stat"><div class="l">Монетизация</div><div class="v" style="color:#a78bfa">Проверить →</div></div>
+            </div>
+            <div class="info-section-label">Теги</div>
+            <div class="info-tag-row">
+              <div class="info-tag">square league</div>
+              <div class="info-tag">square battle</div>
+              <div class="info-tag">simulation battle</div>
+              <div class="info-tag">gaming</div>
+            </div>
+            <div class="info-section-label">Заметки</div>
+            <div class="info-notes">Напишите заметку про это видео…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12. Saved library -->
+  <section class="alt">
+    <div class="wrap">
+      <div class="feature-row">
+        <div class="feature-copy">
+          <div class="showcase-tag">12 — Сохранённое</div>
+          <h3 class="serif">Сохраняете за секунду —<br>находите когда угодно</h3>
+          <p>Кнопка Save на любом видео или канале кладёт его в общую библиотеку. Отдельная страница показывает всё сохранённое по вкладкам — видео, каналы, Shorts, проекты — со счётчиками и карточками: превью, канал, просмотры, дата сохранения.</p>
+          <p>Тот же список открывается прямо в сайдбаре на YouTube — компактным списком с поиском и сортировкой, без переключения вкладок.</p>
+        </div>
+        <div class="feature-visual">
+          <div class="mock-frame" style="padding:0;overflow:hidden">
+            <div class="lib-frame">
+              <div class="lib-body-row">
+                <div style="flex:1;min-width:0">
+                  <div class="lib-header">
+                    <div class="lib-logo"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+                    <div>
+                      <div class="lib-header-title">CreateScope</div>
+                      <div class="lib-header-sub">Личная библиотека сохранённых видео и каналов</div>
+                    </div>
+                    <div class="lib-settings">Настройки</div>
+                  </div>
+                  <div class="lib-tabs">
+                    <div class="lib-tab active">Обзор</div>
+                    <div class="lib-tab">Видео 5</div>
+                    <div class="lib-tab">Каналы 0</div>
+                    <div class="lib-tab">Проекты 0</div>
+                  </div>
+                  <div class="lib-stats-row">
+                    <div class="lib-stat"><div class="n">5</div><div class="l">сохранённых видео</div></div>
+                    <div class="lib-stat"><div class="n">0</div><div class="l">сохранённых каналов</div></div>
+                    <div class="lib-stat"><div class="n">0</div><div class="l">проектов</div></div>
+                  </div>
+                  <div class="lib-section-label">Недавно сохранённые видео</div>
+                  <div class="lib-grid">
+                    <div class="lib-card">
+                      <div class="lib-thumb-wrap"><img src="minecraft.jpg" alt=""><div class="lib-badge">Видео</div></div>
+                      <div class="lib-card-body">
+                        <p class="lib-card-title">I Survived 100 Days Building the ULTIMATE BASE</p>
+                        <div class="lib-card-channel">Wild Frontier</div>
+                        <div class="lib-card-meta">237 тыс. просмотров · Сохранено 17 авг.</div>
+                        <div class="lib-card-actions"><div class="lib-abtn white">Детали</div><div class="lib-abtn purple">Транскрипт</div><div class="lib-abtn purple">Экспорт</div></div>
+                        <div class="lib-card-open-row"><div class="lib-open">Открыть</div><div class="lib-remove">×</div></div>
+                      </div>
+                    </div>
+                    <div class="lib-card">
+                      <div class="lib-thumb-wrap"><img src="nature.jpg" alt=""><div class="lib-badge">Видео</div></div>
+                      <div class="lib-card-body">
+                        <p class="lib-card-title">Durmitor National Park — Prutaš Peak Hike</p>
+                        <div class="lib-card-channel">Trailhead Diaries</div>
+                        <div class="lib-card-meta">147 тыс. просмотров · Сохранено 17 авг.</div>
+                        <div class="lib-card-actions"><div class="lib-abtn white">Детали</div><div class="lib-abtn purple">Транскрипт</div><div class="lib-abtn purple">Экспорт</div></div>
+                        <div class="lib-card-open-row"><div class="lib-open">Открыть</div><div class="lib-remove">×</div></div>
+                      </div>
+                    </div>
+                    <div class="lib-card">
+                      <div class="lib-thumb-wrap"><img src="coffee.jpg" alt=""><div class="lib-badge">Видео</div></div>
+                      <div class="lib-card-body">
+                        <p class="lib-card-title">How To Make Pour Over Coffee — Simple V60 Tutorial</p>
+                        <div class="lib-card-channel">Brew &amp; Pour</div>
+                        <div class="lib-card-meta">64 тыс. просмотров · Сохранено 10 авг.</div>
+                        <div class="lib-card-actions"><div class="lib-abtn white">Детали</div><div class="lib-abtn purple">Транскрипт</div><div class="lib-abtn purple">Экспорт</div></div>
+                        <div class="lib-card-open-row"><div class="lib-open">Открыть</div><div class="lib-remove">×</div></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="lib-side-panel">
+                  <div class="lib-side-head">‹ Сохранённое</div>
+                  <div class="lib-side-tabs"><span class="active">Видео</span><span>Каналы</span><span>Shorts</span><span>Проекты</span></div>
+                  <div class="lib-side-row"><img src="minecraft.jpg" alt=""><div><p class="lib-side-row-title">I Survived 100 Days Building…</p><div class="lib-side-row-meta">Wild Frontier · 237 тыс.</div></div></div>
+                  <div class="lib-side-row"><img src="nature.jpg" alt=""><div><p class="lib-side-row-title">Durmitor National Park — Pr…</p><div class="lib-side-row-meta">Trailhead Diaries · 147 тыс.</div></div></div>
+                  <div class="lib-side-row"><img src="coffee.jpg" alt=""><div><p class="lib-side-row-title">How To Make Pour Over Coffee…</p><div class="lib-side-row-meta">Brew &amp; Pour · 64 тыс.</div></div></div>
+                  <div class="lib-side-open">Открыть всю библиотеку</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="serif">Установка за четыре шага</h2>
+        <p class="section-lead">Не проходит модерацию магазинов — устанавливается вручную, как обычно делают разработчики.</p>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="stepn serif">01</div><h4>Скачайте и распакуйте архив</h4><p>Распакуйте <a href="CreateScope.zip" download><code>CreateScope.zip</code></a> в постоянную папку.</p></div>
+        <div class="step"><div class="stepn serif">02</div><h4>Загрузите как распакованное</h4><p><code>chrome://extensions</code> → Режим разработчика → «Загрузить распакованное».</p></div>
+        <div class="step"><div class="stepn serif">03</div><h4>Установите помощника</h4><p>Скачайте <a href="native-host.zip" download><code>native-host.zip</code></a> и запустите:</p><div class="code-block">.\install.ps1</div></div>
+        <div class="step"><div class="stepn serif">04</div><h4>Готово</h4><p>Откройте любое видео на YouTube — панель появится сама.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <div class="brand" style="display:flex"><img src="logo.png" alt="" style="width:22px;height:22px"> CreateScope</div>
+      Локальный инструмент, работает на вашей машине.
+    </div>
+  </footer>
+</div>
+</body>
+</html>
