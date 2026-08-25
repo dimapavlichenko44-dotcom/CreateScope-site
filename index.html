@@ -368,7 +368,10 @@
          shrinks it as a whole (zoom, not transform, so it still occupies its real on-screen size)
          to fit the column — same layout, just smaller. overflow-x on the parent is a no-JS/pre-load
          fallback so an unshrunk frame scrolls instead of breaking the page. */
-      .feature-visual { overflow-x: auto; }
+      /* .feature-row is a column-direction flex container here. flex:1 (flex-basis:0%) makes a
+         flex item's own height property inert - the JS-set collapsed height below would be
+         silently ignored - so switch to a plain block-sized item instead of a growing flex item. */
+      .feature-visual { flex: none; overflow-x: auto; }
       .mock-frame { width: max-content; max-width: none; }
     }
 
@@ -1064,6 +1067,14 @@
   }
   window.addEventListener('load', fitMockFrames);
   window.addEventListener('resize', fitMockFrames);
+  // The web fonts (Instrument Serif / IBM Plex Sans) can still be swapping in after 'load' -
+  // their line-height differs from the fallback stack, so a height frozen before they're ready
+  // ends up too short once the real font reflows the text (looks squashed vertically). Re-fit
+  // once fonts are actually ready, plus a delayed re-check as a safety net.
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(fitMockFrames);
+  }
+  setTimeout(fitMockFrames, 600);
 })();
 </script>
 </body>
