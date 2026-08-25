@@ -2,9 +2,9 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=1200">
 <title>CreateScope — исследование YouTube прямо в интерфейсе</title>
-<meta name="description" content="CreateScope — расширение для Chrome, Edge, Opera и Brave: конкуренты, анализ канала, транскрипты, скачивание и AI-инструменты, встроенные в YouTube.">
+<meta name="description" content="CreateScope — расширение для Chrome, Edge, Opera и Brave, которое встраивает в интерфейс YouTube поиск конкурентов, анализ каналов, скачивание видео, транскрипты, скриншоты, авторасстановку рекламы в Studio и личную библиотеку сохранённого — без сторонних сайтов и вкладок.">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <style>
     body { margin: 0; font-family: "IBM Plex Sans", "Segoe UI", Arial, sans-serif; background: #120c1a; color: #f3eef9; }
@@ -349,54 +349,10 @@
     .tr-text mark { background: rgba(167,139,250,.35); color: #f3eef9; border-radius: 3px; padding: 0 2px; }
 
 
-    /* ---- responsive: tablet ---- */
-    @media (max-width: 900px) {
-      .wrap { padding: 0 24px; }
-      section { padding: 72px 0; }
-      h1 { font-size: 48px; }
-      h2 { font-size: 34px; }
-      .steps { grid-template-columns: repeat(2, 1fr); }
-      .feature-row, .feature-row.reverse { flex-direction: column; align-items: stretch; }
-      .feature-copy { flex: none; max-width: 560px; }
-      .yt-watch-grid { flex-direction: column; }
-      .yt-secondary { width: 100%; }
-      .lib-body-row { flex-direction: column; }
-      .lib-side-panel { width: 100%; }
-      .lib-grid { grid-template-columns: repeat(2, 1fr); }
-      /* Mockups recreate real UI at a fixed layout — they must not reflow/wrap into a squished
-         mess on narrow screens. Let each one size to its natural (desktop) width, then a script
-         shrinks it as a whole (zoom, not transform, so it still occupies its real on-screen size)
-         to fit the column — same layout, just smaller. overflow-x on the parent is a no-JS/pre-load
-         fallback so an unshrunk frame scrolls instead of breaking the page. */
-      /* .feature-row is a column-direction flex container here. flex:1 (flex-basis:0%) makes a
-         flex item's own height property inert - the JS-set collapsed height below would be
-         silently ignored - so switch to a plain block-sized item instead of a growing flex item. */
-      .feature-visual { flex: none; overflow-x: auto; }
-      .mock-frame { width: max-content; max-width: none; }
-    }
-
-    /* ---- responsive: phone ---- */
-    @media (max-width: 560px) {
-      .wrap { padding: 0 18px; }
-      section { padding: 52px 0; }
-      header.hero { padding: 44px 0 56px; }
-      nav { padding: 20px 0; }
-      .eyebrow { font-size: 11.5px; margin-bottom: 20px; }
-      h1 { font-size: 32px; margin-bottom: 18px; }
-      .lead { font-size: 16px; margin-bottom: 30px; }
-      .cta-row { flex-direction: column; align-items: stretch; gap: 12px; }
-      .btn { justify-content: center; padding: 15px 20px; font-size: 15px; }
-      .demo-wrap { margin-top: 64px; }
-      .float-card.float-1 { position: static; display: inline-flex; align-items: baseline; gap: 8px; margin-bottom: 14px; padding: 10px 16px; }
-      .float-1 .num { font-size: 22px; }
-      h2 { font-size: 26px; }
-      .section-head { margin-bottom: 40px; }
-      .section-lead { font-size: 14.5px; }
-      .feature-copy h3 { font-size: 24px; }
-      .feature-copy p { font-size: 14.5px; }
-      .steps { grid-template-columns: 1fr; }
-      .lib-grid { grid-template-columns: 1fr; }
-    }
+    /* No responsive breakpoints: the viewport meta tag below pins the layout viewport to the
+       page's real design width (1200px) instead of the device width, so phones/tablets get the
+       exact desktop layout auto-shrunk to fit the screen (like any pre-responsive site) rather
+       than a separately reflowed mobile layout - visitors can still pinch-zoom in to read. */
   </style>
 </head>
 <body>
@@ -409,7 +365,7 @@
     <div class="wrap">
       <div class="eyebrow">Chrome · Edge · Opera · Brave — локальная установка</div>
       <h1 class="serif">Исследование YouTube,<br>оформленное <em>как должно быть</em></h1>
-      <p class="lead">Скачивание, транскрипт, AI-анализ и поиск конкурентов — встроены прямо в интерфейс YouTube, ничего лишнего не открывая.</p>
+      <p class="lead">Поиск конкурентов, анализ каналов, скачивание, транскрипт, скриншоты, AI-инструменты и авторасстановка рекламы в Studio — прямо в интерфейсе YouTube, без сторонних сайтов и вкладок.</p>
       <div class="cta-row">
         <a class="btn btn-primary" href="CreateScope.zip" download>Скачать CreateScope</a>
         <a class="btn btn-text" href="#install">Инструкция по установке →</a>
@@ -699,6 +655,7 @@
             </div>
             <div class="shorts-actions">
               <div class="shorts-btn" style="color:#16a34a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></div>
+              <div class="shorts-btn" style="color:#9333ea"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 2-2h1.5l1.2-1.6A2 2 0 0 1 9.3 3.6h5.4a2 2 0 0 1 1.6.8L17.5 6H19a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z"/><circle cx="12" cy="13" r="3.5"/></svg></div>
               <div class="shorts-btn" style="color:#eab308"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg></div>
               <div class="shorts-btn" style="color:#c084fc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.6 4.9.4-3.7 3.3 1.1 4.8L12 13.9 7.8 16l1.1-4.8-3.7-3.3 4.9-.4z"/></svg></div>
             </div>
@@ -1041,41 +998,5 @@
     </div>
   </footer>
 </div>
-<script>
-(function () {
-  // CSS `zoom` has no/unreliable support on iOS Safari, so this uses `transform: scale()`
-  // instead (universal support) and manually collapses the parent's box to the scaled height,
-  // since transform (unlike zoom) doesn't shrink the space the element reserves in the flow.
-  function fitMockFrames() {
-    document.querySelectorAll('.mock-frame').forEach(function (el) {
-      var parent = el.parentElement;
-      if (!parent) return;
-      el.style.transform = '';
-      parent.style.height = '';
-      parent.style.overflow = '';
-      var available = parent.clientWidth;
-      var naturalW = el.offsetWidth;
-      var naturalH = el.offsetHeight;
-      if (available > 0 && naturalW > available) {
-        var scale = available / naturalW;
-        el.style.transformOrigin = 'top left';
-        el.style.transform = 'scale(' + scale + ')';
-        parent.style.height = Math.ceil(naturalH * scale) + 'px';
-        parent.style.overflow = 'hidden';
-      }
-    });
-  }
-  window.addEventListener('load', fitMockFrames);
-  window.addEventListener('resize', fitMockFrames);
-  // The web fonts (Instrument Serif / IBM Plex Sans) can still be swapping in after 'load' -
-  // their line-height differs from the fallback stack, so a height frozen before they're ready
-  // ends up too short once the real font reflows the text (looks squashed vertically). Re-fit
-  // once fonts are actually ready, plus a delayed re-check as a safety net.
-  if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(fitMockFrames);
-  }
-  setTimeout(fitMockFrames, 600);
-})();
-</script>
 </body>
 </html>
