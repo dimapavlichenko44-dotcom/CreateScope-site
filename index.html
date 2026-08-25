@@ -1040,14 +1040,26 @@
 </div>
 <script>
 (function () {
+  // CSS `zoom` has no/unreliable support on iOS Safari, so this uses `transform: scale()`
+  // instead (universal support) and manually collapses the parent's box to the scaled height,
+  // since transform (unlike zoom) doesn't shrink the space the element reserves in the flow.
   function fitMockFrames() {
     document.querySelectorAll('.mock-frame').forEach(function (el) {
-      el.style.zoom = 1;
       var parent = el.parentElement;
       if (!parent) return;
+      el.style.transform = '';
+      parent.style.height = '';
+      parent.style.overflow = '';
       var available = parent.clientWidth;
-      var natural = el.getBoundingClientRect().width;
-      el.style.zoom = (available > 0 && natural > available) ? (available / natural) : 1;
+      var naturalW = el.offsetWidth;
+      var naturalH = el.offsetHeight;
+      if (available > 0 && naturalW > available) {
+        var scale = available / naturalW;
+        el.style.transformOrigin = 'top left';
+        el.style.transform = 'scale(' + scale + ')';
+        parent.style.height = Math.ceil(naturalH * scale) + 'px';
+        parent.style.overflow = 'hidden';
+      }
     });
   }
   window.addEventListener('load', fitMockFrames);
