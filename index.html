@@ -363,9 +363,13 @@
       .lib-body-row { flex-direction: column; }
       .lib-side-panel { width: 100%; }
       .lib-grid { grid-template-columns: repeat(2, 1fr); }
-      /* wide, pixel-accurate UI recreations (real YouTube/Studio geometry) don't reflow —
-         they scroll horizontally inside their own frame instead of breaking the page. */
-      .mock-frame { max-width: 100%; overflow-x: auto; }
+      /* Mockups recreate real UI at a fixed layout — they must not reflow/wrap into a squished
+         mess on narrow screens. Let each one size to its natural (desktop) width, then a script
+         shrinks it as a whole (zoom, not transform, so it still occupies its real on-screen size)
+         to fit the column — same layout, just smaller. overflow-x on the parent is a no-JS/pre-load
+         fallback so an unshrunk frame scrolls instead of breaking the page. */
+      .feature-visual { overflow-x: auto; }
+      .mock-frame { width: max-content; max-width: none; }
     }
 
     /* ---- responsive: phone ---- */
@@ -1034,5 +1038,21 @@
     </div>
   </footer>
 </div>
+<script>
+(function () {
+  function fitMockFrames() {
+    document.querySelectorAll('.mock-frame').forEach(function (el) {
+      el.style.zoom = 1;
+      var parent = el.parentElement;
+      if (!parent) return;
+      var available = parent.clientWidth;
+      var natural = el.getBoundingClientRect().width;
+      el.style.zoom = (available > 0 && natural > available) ? (available / natural) : 1;
+    });
+  }
+  window.addEventListener('load', fitMockFrames);
+  window.addEventListener('resize', fitMockFrames);
+})();
+</script>
 </body>
 </html>
